@@ -1,0 +1,22 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug cv1",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/cv1",
+            "cwd": "${workspaceFolder}/cv1",
+            "args": ["C:\\Users\\ajrac\\Downloads\\mensi_dataset\\mensi_dataset"]
+        },
+        {
+            "name": "Debug current package",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${fileDirname}",
+            "cwd": "${fileDirname}"
+        }
+    ]
+}
