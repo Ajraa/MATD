@@ -25,9 +25,10 @@ func main() {
 	text := clean(string(data))
 	printStatistics(text)
 
-	tok := WordTokenizer{}
-	tokens := tok.Tokenize(text, 1000)
-	fmt.Println("Tokens:", tokens)
+	tok := ByteTokenizer{}
+	vocab, sequence := tok.Tokenize(text, 1000)
+	fmt.Println("Vocab:", len(vocab))
+	fmt.Println("Sequence:", sequence)
 
 }
 

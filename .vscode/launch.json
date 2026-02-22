@@ -8,7 +8,7 @@
             "mode": "debug",
             "program": "${workspaceFolder}/cv1",
             "cwd": "${workspaceFolder}/cv1",
-            "args": ["C:\\Users\\ajrac\\Downloads\\mensi_dataset\\mensi_dataset"]
+            "args": ["E:\\Downloads\\cs (3).txt\\cs (3).txt"]
         },
         {
             "name": "Debug current package",

@@ -1,6 +1,8 @@
 package main
 
-import "strings"
+import (
+	"strings"
+)
 
 type Merge struct {
 	A string
@@ -8,13 +10,20 @@ type Merge struct {
 }
 
 type Tokenizer interface {
-	Tokenize(text string, k int) []string
+	Tokenize(text string, k int) ([]string, []string)
 }
 
 type WordTokenizer struct{}
 type ByteTokenizer struct{}
 
-func (t WordTokenizer) Tokenize(text string, k int) []string {
+// llNode je uzel doubly-linked listu pro ByteTokenizer
+type llNode struct {
+	val  string
+	prev *llNode
+	next *llNode
+}
+
+func (t WordTokenizer) Tokenize(text string, k int) ([]string, []string) {
 	fields := strings.Fields(text)
 
 	freq := make(map[string]int)
@@ -34,14 +43,17 @@ func (t WordTokenizer) Tokenize(text string, k int) []string {
 		wordSeq[w] = syms
 	}
 
+	// Počáteční frekvence párů (spočítám jednou)
+	pairCounts := pairFrequencies(wordSeq, freq)
+
 	merges := make([]Merge, 0, k)
 	for i := 0; i < k; i++ {
-		pairCounts := pairFrequencies(wordSeq, freq)
 		if len(pairCounts) == 0 {
 			break
 		}
 
-		bestPair := ""
+		println(i)
+		bestPair := Merge{}
 		bestCount := 0
 
 		for p, c := range pairCounts {
@@ -50,14 +62,15 @@ func (t WordTokenizer) Tokenize(text string, k int) []string {
 				bestPair = p
 			}
 		}
+		if bestCount == 0 {
+			break
+		}
 
-		parts := strings.SplitN(bestPair, " ", 2)
-		a, b := parts[0], parts[1]
+		a, b := bestPair.A, bestPair.B
+		merged := a + b
 		merges = append(merges, Merge{A: a, B: b})
 
-		for w, syms := range wordSeq {
-			wordSeq[w] = applyMerge(syms, a, b, a+b)
-		}
+		updateWordPairCounts(wordSeq, freq, pairCounts, a, b, merged)
 	}
 
 	vocab := make(map[string]struct{})
@@ -72,23 +85,181 @@ func (t WordTokenizer) Tokenize(text string, k int) []string {
 		vocabList = append(vocabList, s)
 	}
 
-	return vocabList
+	// sestavení celé tokenizované sekvence v pořadí původního textu
+	var sequence []string
+	for _, w := range fields {
+		sequence = append(sequence, wordSeq[w]...)
+	}
+
+	return vocabList, sequence
 }
 
-func pairFrequencies(wordSeq map[string][]string, freq map[string]int) map[string]int {
-	pairCounts := make(map[string]int)
+func (t ByteTokenizer) Tokenize(text string, k int) ([]string, []string) {
+	// Inicializace linked listu z jednotlivých znaků
+	var head *llNode
+	var tail *llNode
+	for _, ch := range text {
+		node := &llNode{val: string(ch)}
+		if head == nil {
+			head = node
+		} else {
+			tail.next = node
+			node.prev = tail
+		}
+		tail = node
+	}
+
+	// Počáteční frekvence párů (spočítám jednou)
+	pairCounts := make(map[Merge]int)
+	for n := head; n != nil && n.next != nil; n = n.next {
+		pairCounts[Merge{A: n.val, B: n.next.val}]++
+	}
+
+	// K merge operací
+	merges := make([]Merge, 0, k)
+	for i := 0; i < k; i++ {
+		if len(pairCounts) == 0 {
+			break
+		}
+		println(i)
+		bestPair := Merge{}
+		bestCount := 0
+		for p, c := range pairCounts {
+			if c > bestCount {
+				bestCount = c
+				bestPair = p
+			}
+		}
+		if bestCount == 0 {
+			break
+		}
+
+		a, b := bestPair.A, bestPair.B
+		merged := a + b
+		merges = append(merges, Merge{A: a, B: b})
+
+		updateBytePairCountsLL(head, pairCounts, a, b, merged)
+	}
+
+	// Unikátní slovník + sekvence z linked listu
+	vocab := make(map[string]struct{})
+	var syms []string
+	for n := head; n != nil; n = n.next {
+		syms = append(syms, n.val)
+		vocab[n.val] = struct{}{}
+	}
+
+	vocabList := make([]string, 0, len(vocab))
+	for s := range vocab {
+		vocabList = append(vocabList, s)
+	}
+	return vocabList, syms
+}
+
+// updateWordPairCounts inkrementálně aktualizuje pairCounts po merge (a,b)->merged
+// pro WordTokenizer. Zpracuje jen slova obsahující pár (a, b).
+func updateWordPairCounts(wordSeq map[string][]string, freq map[string]int, pairCounts map[Merge]int, a, b, merged string) {
 	for w, syms := range wordSeq {
 		wt := freq[w]
 		if wt == 0 || len(syms) < 2 {
 			continue
 		}
-		local := make(map[string]int)
-		for i := 0; i+1 < len(syms); i++ {
-			p := syms[i] + " " + syms[i+1]
-			local[p]++
+
+		// Zjistím, zda slovo obsahuje hledaný pár
+		hasPair := false
+		for j := 0; j+1 < len(syms); j++ {
+			if syms[j] == a && syms[j+1] == b {
+				hasPair = true
+				break
+			}
 		}
-		for p, c := range local {
-			pairCounts[p] += c * wt
+		if !hasPair {
+			continue
+		}
+
+		// Odečtu staré páry tohoto slova z pairCounts
+		for j := 0; j+1 < len(syms); j++ {
+			p := Merge{A: syms[j], B: syms[j+1]}
+			pairCounts[p] -= wt
+			if pairCounts[p] <= 0 {
+				delete(pairCounts, p)
+			}
+		}
+
+		// Aplikuji merge
+		newSyms := applyMerge(syms, a, b, merged)
+		wordSeq[w] = newSyms
+
+		// Přidám nové páry po merge
+		for j := 0; j+1 < len(newSyms); j++ {
+			p := Merge{A: newSyms[j], B: newSyms[j+1]}
+			pairCounts[p] += wt
+		}
+	}
+}
+
+// updateBytePairCountsLL inkrementálně aktualizuje pairCounts po merge (a,b)->merged
+// přímo na linked listu. Merge probíhá in-place v O(počet výskytů páru).
+func updateBytePairCountsLL(head *llNode, pairCounts map[Merge]int, a, b, merged string) {
+	for n := head; n != nil && n.next != nil; {
+		if n.val != a || n.next.val != b {
+			n = n.next
+			continue
+		}
+
+		// Odečtu staré páry v okolí merge pozice
+		// Levý soused → a
+		if n.prev != nil {
+			decrementPair(pairCounts, n.prev.val, n.val)
+		}
+		// Pár samotný: a → b
+		decrementPair(pairCounts, a, b)
+		// b → pravý soused
+		if n.next.next != nil {
+			decrementPair(pairCounts, n.next.val, n.next.next.val)
+		}
+
+		// Merge: uzel n přepíšu na merged, odstraním n.next
+		removed := n.next
+		n.val = merged
+		n.next = removed.next
+		if removed.next != nil {
+			removed.next.prev = n
+		}
+
+		// Přidám nové páry v okolí sloučeného uzlu
+		// Levý soused → merged
+		if n.prev != nil {
+			pairCounts[Merge{A: n.prev.val, B: n.val}]++
+		}
+		// merged → pravý soused
+		if n.next != nil {
+			pairCounts[Merge{A: n.val, B: n.next.val}]++
+		}
+
+		// Greedy: přeskočím na další uzel (nezkouším znovu tentýž)
+		n = n.next
+	}
+}
+
+func decrementPair(pairCounts map[Merge]int, a, b string) {
+	p := Merge{A: a, B: b}
+	pairCounts[p]--
+	if pairCounts[p] <= 0 {
+		delete(pairCounts, p)
+	}
+}
+
+func pairFrequencies(wordSeq map[string][]string, freq map[string]int) map[Merge]int {
+	pairCounts := make(map[Merge]int)
+	for w, syms := range wordSeq {
+		wt := freq[w]
+		if wt == 0 || len(syms) < 2 {
+			continue
+		}
+		for i := 0; i+1 < len(syms); i++ {
+			p := Merge{A: syms[i], B: syms[i+1]}
+			pairCounts[p] += wt
 		}
 	}
 	return pairCounts
@@ -107,16 +278,4 @@ func applyMerge(syms []string, a, b, merged string) []string {
 		}
 	}
 	return result
-}
-
-func (t ByteTokenizer) Tokenize(text string, k int) []string {
-	freq := make(map[string]int)
-	for ch := range text {
-		freq[string(ch)]++
-	}
-
-	merges := make([]Merge, 0, k)
-	for i := 0; i < k; i++ {
-		pairCounts := pairFrequencies()
-	}
 }
