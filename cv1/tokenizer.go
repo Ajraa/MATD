@@ -1,6 +1,7 @@
 package main
 
 import (
+	"sort"
 	"strings"
 )
 
@@ -21,6 +22,7 @@ type llNode struct {
 	val  string
 	prev *llNode
 	next *llNode
+	pos  int // pořadí v původní sekvenci (pro greedy left-to-right řazení)
 }
 
 func (t WordTokenizer) Tokenize(text string, k int) ([]string, []string) {
@@ -52,7 +54,6 @@ func (t WordTokenizer) Tokenize(text string, k int) ([]string, []string) {
 			break
 		}
 
-		println(i)
 		bestPair := Merge{}
 		bestCount := 0
 
@@ -95,11 +96,14 @@ func (t WordTokenizer) Tokenize(text string, k int) ([]string, []string) {
 }
 
 func (t ByteTokenizer) Tokenize(text string, k int) ([]string, []string) {
-	// Inicializace linked listu z jednotlivých znaků
+	// Inicializace linked listu + invertovaného indexu
 	var head *llNode
 	var tail *llNode
-	for _, ch := range text {
-		node := &llNode{val: string(ch)}
+	nodeIndex := make(map[string]map[*llNode]struct{})
+
+	for i, ch := range text {
+		s := string(ch)
+		node := &llNode{val: s, pos: i}
 		if head == nil {
 			head = node
 		} else {
@@ -107,6 +111,10 @@ func (t ByteTokenizer) Tokenize(text string, k int) ([]string, []string) {
 			node.prev = tail
 		}
 		tail = node
+		if nodeIndex[s] == nil {
+			nodeIndex[s] = make(map[*llNode]struct{})
+		}
+		nodeIndex[s][node] = struct{}{}
 	}
 
 	// Počáteční frekvence párů (spočítám jednou)
@@ -121,7 +129,7 @@ func (t ByteTokenizer) Tokenize(text string, k int) ([]string, []string) {
 		if len(pairCounts) == 0 {
 			break
 		}
-		println(i)
+
 		bestPair := Merge{}
 		bestCount := 0
 		for p, c := range pairCounts {
@@ -138,7 +146,7 @@ func (t ByteTokenizer) Tokenize(text string, k int) ([]string, []string) {
 		merged := a + b
 		merges = append(merges, Merge{A: a, B: b})
 
-		updateBytePairCountsLL(head, pairCounts, a, b, merged)
+		updateBytePairCountsLL(pairCounts, nodeIndex, a, b, merged)
 	}
 
 	// Unikátní slovník + sekvence z linked listu
@@ -198,47 +206,78 @@ func updateWordPairCounts(wordSeq map[string][]string, freq map[string]int, pair
 	}
 }
 
-// updateBytePairCountsLL inkrementálně aktualizuje pairCounts po merge (a,b)->merged
-// přímo na linked listu. Merge probíhá in-place v O(počet výskytů páru).
-func updateBytePairCountsLL(head *llNode, pairCounts map[Merge]int, a, b, merged string) {
-	for n := head; n != nil && n.next != nil; {
-		if n.val != a || n.next.val != b {
-			n = n.next
+// updateBytePairCountsLL inkrementálně aktualizuje pairCounts po merge (a,b)->merged.
+// Používá nodeIndex pro přímý přístup k uzlům s hodnotou a — žádné procházení celého listu.
+func updateBytePairCountsLL(pairCounts map[Merge]int, nodeIndex map[string]map[*llNode]struct{}, a, b, merged string) {
+	// Sesbírám kandidáty: uzly s hodnotou a, jejichž next má hodnotu b
+	candidates := make([]*llNode, 0)
+	for n := range nodeIndex[a] {
+		if n.next != nil && n.next.val == b {
+			candidates = append(candidates, n)
+		}
+	}
+	if len(candidates) == 0 {
+		return
+	}
+
+	// Seřadím podle pozice pro greedy left-to-right zpracování
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].pos < candidates[j].pos
+	})
+
+	// Zpracuji merge s ochranou proti překryvům
+	consumed := make(map[*llNode]bool, len(candidates))
+	for _, n := range candidates {
+		if consumed[n] {
+			continue
+		}
+		// Re-validace (list se mohl změnit předchozím merge)
+		if n.next == nil || n.next.val != b || consumed[n.next] {
 			continue
 		}
 
-		// Odečtu staré páry v okolí merge pozice
-		// Levý soused → a
+		bNode := n.next
+		consumed[bNode] = true
+
+		// Odečtu staré páry v okolí
 		if n.prev != nil {
 			decrementPair(pairCounts, n.prev.val, n.val)
 		}
-		// Pár samotný: a → b
 		decrementPair(pairCounts, a, b)
-		// b → pravý soused
-		if n.next.next != nil {
-			decrementPair(pairCounts, n.next.val, n.next.next.val)
+		if bNode.next != nil {
+			decrementPair(pairCounts, bNode.val, bNode.next.val)
 		}
 
-		// Merge: uzel n přepíšu na merged, odstraním n.next
-		removed := n.next
+		// Aktualizuji nodeIndex: odstraním staré záznamy
+		delete(nodeIndex[a], n)
+		if len(nodeIndex[a]) == 0 {
+			delete(nodeIndex, a)
+		}
+		delete(nodeIndex[b], bNode)
+		if bSet := nodeIndex[b]; bSet != nil && len(bSet) == 0 {
+			delete(nodeIndex, b)
+		}
+
+		// Merge: uzel n přepíšu na merged, odstraním bNode
 		n.val = merged
-		n.next = removed.next
-		if removed.next != nil {
-			removed.next.prev = n
+		n.next = bNode.next
+		if bNode.next != nil {
+			bNode.next.prev = n
 		}
 
-		// Přidám nové páry v okolí sloučeného uzlu
-		// Levý soused → merged
+		// Přidám n do nodeIndex[merged]
+		if nodeIndex[merged] == nil {
+			nodeIndex[merged] = make(map[*llNode]struct{})
+		}
+		nodeIndex[merged][n] = struct{}{}
+
+		// Přidám nové páry
 		if n.prev != nil {
 			pairCounts[Merge{A: n.prev.val, B: n.val}]++
 		}
-		// merged → pravý soused
 		if n.next != nil {
 			pairCounts[Merge{A: n.val, B: n.next.val}]++
 		}
-
-		// Greedy: přeskočím na další uzel (nezkouším znovu tentýž)
-		n = n.next
 	}
 }
 

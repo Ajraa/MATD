@@ -27,8 +27,8 @@ func main() {
 
 	tok := ByteTokenizer{}
 	vocab, sequence := tok.Tokenize(text, 1000)
-	fmt.Println("Vocab:", len(vocab))
-	fmt.Println("Sequence:", sequence)
+	fmt.Println("Vocab size:", len(vocab))
+	fmt.Println("Sequence length:", len(sequence))
 
 }
 

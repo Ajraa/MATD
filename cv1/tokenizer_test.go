@@ -11,7 +11,7 @@ import (
 
 // Výchozí cesta k českému datasetu (stejná jako v launch.json).
 // Lze přepsat proměnnou prostředí DATASET_PATH.
-const defaultDatasetPath = `E:\Downloads\cs (3).txt\cs (3).txt`
+const defaultDatasetPath = `E:\Downloads\cs (4).txt\cs (4).txt`
 
 // Fallback text pro případ, že soubor neexistuje
 const fallbackText = `the cat sat on the mat the cat ate the rat and the bat sat on the flat hat ` +
@@ -19,7 +19,7 @@ const fallbackText = `the cat sat on the mat the cat ate the rat and the bat sat
 	`on the mat while the bat flew over the flat hat the cat chased the rat around the mat and ` +
 	`the bat watched from the hat`
 
-const mergeOps = 500
+const mergeOps = 1000
 
 // ---------- Načtení a čištění datasetu ----------
 
