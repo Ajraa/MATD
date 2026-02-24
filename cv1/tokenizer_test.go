@@ -11,7 +11,7 @@ import (
 
 // Výchozí cesta k českému datasetu (stejná jako v launch.json).
 // Lze přepsat proměnnou prostředí DATASET_PATH.
-const defaultDatasetPath = `E:\Downloads\cs (4).txt\cs (4).txt`
+const defaultDatasetPath = `C:\Users\ajrac\Downloads\cs (1).txt\cs (1).txt`
 
 // Fallback text pro případ, že soubor neexistuje
 const fallbackText = `the cat sat on the mat the cat ate the rat and the bat sat on the flat hat ` +
@@ -179,7 +179,7 @@ func TestMezislovniTokeny(t *testing.T) {
 	}
 
 	// ByteBPE může (a typicky bude) mít tokeny s mezerou
-	t.Logf("ByteBPE má %d tokenů obsahujících mezeru — to je očekávané chování", byteSpaceCount)
+	t.Logf("ByteBPE má %d tokenů obsahujících mezeru", byteSpaceCount)
 }
 
 // ---------- Kvalitativní srovnání: segmentace vybraných slov ----------
@@ -211,10 +211,6 @@ func TestKvalitativniSrovnani(t *testing.T) {
 		}
 	}
 
-	// --- ByteBPE segmentace ---
-	// Najdeme, jak ByteBPE tokenizuje vybraná slova v kontextu celého textu.
-	// Protože ByteBPE pracuje s celým textem včetně mezer, extrahujeme tokeny
-	// které pokrývají oblast daného slova.
 	t.Logf("")
 	t.Logf("--- ByteBPE segmentace ---")
 
@@ -246,8 +242,6 @@ func TestVlivKNaEfektivitu(t *testing.T) {
 	}
 }
 
-// truncateText ořízne text na prvních maxChars znaků (rune-safe),
-// aby testy na velkém datasetu neběžely příliš dlouho.
 func truncateText(text string, maxChars int) string {
 	runes := []rune(text)
 	if len(runes) <= maxChars {

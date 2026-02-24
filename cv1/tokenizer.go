@@ -164,8 +164,6 @@ func (t ByteTokenizer) Tokenize(text string, k int) ([]string, []string) {
 	return vocabList, syms
 }
 
-// updateWordPairCounts inkrementálně aktualizuje pairCounts po merge (a,b)->merged
-// pro WordTokenizer. Zpracuje jen slova obsahující pár (a, b).
 func updateWordPairCounts(wordSeq map[string][]string, freq map[string]int, pairCounts map[Merge]int, a, b, merged string) {
 	for w, syms := range wordSeq {
 		wt := freq[w]
@@ -206,8 +204,6 @@ func updateWordPairCounts(wordSeq map[string][]string, freq map[string]int, pair
 	}
 }
 
-// updateBytePairCountsLL inkrementálně aktualizuje pairCounts po merge (a,b)->merged.
-// Používá nodeIndex pro přímý přístup k uzlům s hodnotou a — žádné procházení celého listu.
 func updateBytePairCountsLL(pairCounts map[Merge]int, nodeIndex map[string]map[*llNode]struct{}, a, b, merged string) {
 	// Sesbírám kandidáty: uzly s hodnotou a, jejichž next má hodnotu b
 	candidates := make([]*llNode, 0)
