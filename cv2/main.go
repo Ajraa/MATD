@@ -1,13 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"strings"
 )
 
 func main() {
-	path := "C:\\Users\\ajrac\\Downloads\\cs (1).txt\\cs (1).txt"
+	path := "E:\\Downloads\\cs (4).txt\\cs (4).txt"
 	if len(os.Args) > 1 {
 		path = os.Args[1]
 	}
@@ -23,12 +24,20 @@ func main() {
 	text := clean(string(data))
 	fields := strings.Fields(text)
 	_, best_uni, uniCount, V := createUnigram(fields)
-	_, best_bi, biCount := createBigram(fields, uniCount, V)
+	bigram_list, best_bi, biCount := createBigram(fields, uniCount, V)
 	_, best_tri := createTrigram(fields, biCount, V)
 	fmt.Println("Best unigram:", best_uni)
 	fmt.Println("Best bigram:", best_bi)
 	fmt.Println("Best trigram:", best_tri)
 
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Zadej text: ")
+	input, _ := reader.ReadString('\n')
+
+	fields = strings.Fields(clean(input))
+	w1 := fields[len(fields)-1]
+	predicted := predictBigram(w1, bigram_list)
+	fmt.Println("Predict:", input+predicted)
 }
 
 func clean(text string) string {
@@ -94,6 +103,22 @@ func createBigram(fields []string, uniCount map[string]float64, V float64) (map[
 		}
 	}
 	return bigramFreq, bestNgram, bigramCounts
+}
+
+func predictBigram(w1 string, bigramFreq map[string]map[string]float64) string {
+	if bigramFreq[w1] == nil {
+		return ""
+	}
+
+	bestW2 := ""
+	bestFreq := 0.0
+	for w2, freq := range bigramFreq[w1] {
+		if freq > bestFreq {
+			bestFreq = freq
+			bestW2 = w2
+		}
+	}
+	return bestW2
 }
 
 func createTrigram(fields []string, biCount map[string]float64, V float64) (map[string]map[string]float64, string) {
