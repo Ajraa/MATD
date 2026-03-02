@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
 	"strings"
@@ -31,9 +32,30 @@ func main() {
 	fmt.Println("Best bigram:", best_bi)
 	fmt.Println("Best trigram:", best_tri)
 
+	// Rozdělení dat na trénovací (80%) a testovací (20%)
+	splitIdx := int(float64(len(fields)) * 0.8)
+	trainFields := fields[:splitIdx]
+	testFields := fields[splitIdx:]
+	fmt.Printf("\nRozdělení dat: trénovací=%d slov, testovací=%d slov\n", len(trainFields), len(testFields))
+
+	// Vytvoření modelů na trénovacích datech
+	uniFreqTrain, _, uniCountTrain, Vtrain := createUnigram(trainFields)
+	biFreqTrain, _, biCountTrain := createBigram(trainFields, uniCountTrain, Vtrain)
+	triFreqTrain, _ := createTrigram(trainFields, biCountTrain, Vtrain)
+
+	// Výpočet perplexity na testovacích datech
+	totalTrain := float64(len(trainFields))
+	ppUni := perplexityUnigram(testFields, uniFreqTrain, totalTrain, Vtrain)
+	ppBi := perplexityBigram(testFields, biFreqTrain, uniCountTrain, Vtrain)
+	ppTri := perplexityTrigram(testFields, triFreqTrain, biCountTrain, Vtrain)
+
+	fmt.Printf("Unigram perplexity: %.2f\n", ppUni)
+	fmt.Printf("Bigram  perplexity: %.2f\n", ppBi)
+	fmt.Printf("Trigram perplexity: %.2f\n", ppTri)
+
 	// Generátor textu pomocí trigramového modelu
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Zadej počáteční slovo: ")
+	fmt.Print("\nZadej počáteční slovo: ")
 	input, _ := reader.ReadString('\n')
 
 	predicted := predictBigram(strings.TrimSpace(strings.ToLower(input)), bigram_list)
@@ -150,9 +172,6 @@ func weightedRandom(dist map[string]float64) string {
 	return ""
 }
 
-// generateText - generátor textu pomocí trigramového modelu
-// Začne vstupním slovem, najde druhé slovo bigramem, pak pokračuje trigramy.
-// Slova vybírá náhodně podle pravděpodobnosti (ne nejpravděpodobnější).
 func generateText(startWord string, numSentences int, bigramFreq, trigramFreq map[string]map[string]float64, maxWords int) string {
 	words := []string{startWord}
 	sentenceCount := 0
@@ -233,4 +252,71 @@ func createTrigram(fields []string, biCount map[string]float64, V float64) (map[
 		}
 	}
 	return trigramFreq, bestNgram
+}
+
+func perplexityUnigram(testFields []string, uniFreq map[string]float64, totalTrain float64, V float64) float64 {
+	logSum := 0.0
+	N := len(testFields)
+
+	for _, w := range testFields {
+		prob, exists := uniFreq[w]
+		if !exists {
+			// Nepozorované slovo - Laplace smoothing: 1 / (totalTrain + V)
+			prob = 1.0 / (totalTrain + V)
+		}
+		logSum += math.Log2(prob)
+	}
+
+	return math.Pow(2, -logSum/float64(N))
+}
+
+func perplexityBigram(testFields []string, biFreq map[string]map[string]float64, uniCount map[string]float64, V float64) float64 {
+	logSum := 0.0
+	N := 0
+
+	for i := 0; i < len(testFields)-1; i++ {
+		w1, w2 := testFields[i], testFields[i+1]
+		var prob float64
+
+		if biFreq[w1] != nil && biFreq[w1][w2] > 0 {
+			// Pozorovaný bigram - již vyhlazená pravděpodobnost
+			prob = biFreq[w1][w2]
+		} else {
+			// Nepozorovaný bigram - Laplace: 1 / (count(w1) + V)
+			prob = 1.0 / (uniCount[w1] + V)
+		}
+		logSum += math.Log2(prob)
+		N++
+	}
+
+	if N == 0 {
+		return math.Inf(1)
+	}
+	return math.Pow(2, -logSum/float64(N))
+}
+
+func perplexityTrigram(testFields []string, triFreq map[string]map[string]float64, biCount map[string]float64, V float64) float64 {
+	logSum := 0.0
+	N := 0
+
+	for i := 0; i < len(testFields)-2; i++ {
+		w1, w2, w3 := testFields[i], testFields[i+1], testFields[i+2]
+		key := w1 + " " + w2
+		var prob float64
+
+		if triFreq[key] != nil && triFreq[key][w3] > 0 {
+			// Pozorovaný trigram - již vyhlazená pravděpodobnost
+			prob = triFreq[key][w3]
+		} else {
+			// Nepozorovaný trigram - Laplace: 1 / (count(w1 w2) + V)
+			prob = 1.0 / (biCount[key] + V)
+		}
+		logSum += math.Log2(prob)
+		N++
+	}
+
+	if N == 0 {
+		return math.Inf(1)
+	}
+	return math.Pow(2, -logSum/float64(N))
 }
