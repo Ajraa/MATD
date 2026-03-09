@@ -149,7 +149,6 @@ func predictBigram(w1 string, bigramFreq map[string]map[string]float64) string {
 	return bestW2
 }
 
-// weightedRandom - náhodný výběr slova na základě pravděpodobností
 func weightedRandom(dist map[string]float64) string {
 	total := 0.0
 	for _, prob := range dist {

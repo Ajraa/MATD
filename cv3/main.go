@@ -100,7 +100,7 @@ func Horspool(text, pattern string) SearchResult {
 		return result
 	}
 
-	// Vytvoření shift tabulky (bad character rule)
+	// Vytvoření shift tabulky
 	shift := make(map[byte]int)
 	for i := 0; i < m-1; i++ {
 		shift[pattern[i]] = m - 1 - i
@@ -123,7 +123,7 @@ func Horspool(text, pattern string) SearchResult {
 		// posun dle znaku v textu zarovnaného s posledním znakem vzoru
 		s, ok := shift[text[i]]
 		if !ok {
-			s = m // znak není ve vzoru → posun o celou délku vzoru
+			s = m // znak není ve vzoru, posun o celou délku vzoru
 		}
 		i += s
 	}
