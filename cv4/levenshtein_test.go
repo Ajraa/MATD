@@ -45,8 +45,12 @@ func TestLevenshteinDistance(t *testing.T) {
 		// Jeden znak
 		{"jeden znak rozdíl", "a", "b", 1},
 
-		// Diakritika (UTF-8 – funkce pracuje s bajty, ne runami)
+		// Diakritika
 		{"ascii bez diakritiky", "rok", "bok", 1},
+		{"diakritika české znaky", "příliš", "přiliš", 1},
+		{"diakritika háčky", "čas", "cas", 1},
+		{"diakritika oba shodné", "žlutý", "žlutý", 0},
+		{"diakritika různá slova", "kůň", "kuň", 1},
 	}
 
 	for _, tt := range tests {
