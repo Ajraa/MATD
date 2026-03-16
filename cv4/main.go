@@ -2,11 +2,14 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"sort"
 	"strings"
 	"unicode"
 )
+
+const defaultDatasetPath = "C:\\Users\\ajrac\\Downloads\\cs (1).txt\\cs (1).txt"
 
 // diakritika jsou 2 znaky, proto pracujeme s runami, ne bajty
 func levenshteinDistance(s1, s2 string) int {
@@ -35,41 +38,227 @@ func levenshteinDistanceRunes(r1, r2 []rune) int {
 	)
 }
 
+// Iterativní varianta Levenshteina pro rychlé porovnání se slovníkem.
+func levenshteinDistanceDP(s1, s2 string) int {
+	r1 := []rune(s1)
+	r2 := []rune(s2)
+
+	if len(r1) == 0 {
+		return len(r2)
+	}
+	if len(r2) == 0 {
+		return len(r1)
+	}
+
+	prev := make([]int, len(r2)+1)
+	for j := 0; j <= len(r2); j++ {
+		prev[j] = j
+	}
+
+	for i := 1; i <= len(r1); i++ {
+		curr := make([]int, len(r2)+1)
+		curr[0] = i
+
+		for j := 1; j <= len(r2); j++ {
+			cost := 0
+			if r1[i-1] != r2[j-1] {
+				cost = 1
+			}
+
+			curr[j] = min(
+				prev[j]+1,
+				curr[j-1]+1,
+				prev[j-1]+cost,
+			)
+		}
+
+		prev = curr
+	}
+
+	return prev[len(r2)]
+}
+
+func bestCandidateFromVariants(inputWord string, frequency map[string]int, alphabet []rune) (string, bool) {
+	if _, exists := frequency[inputWord]; exists {
+		return inputWord, true
+	}
+
+	variants := editsUpToDistance2(inputWord, alphabet)
+	known := filterKnownVariants(variants, frequency)
+	if len(known) == 0 {
+		return "", false
+	}
+
+	sort.Slice(known, func(i, j int) bool {
+		fi := frequency[known[i]]
+		fj := frequency[known[j]]
+		if fi == fj {
+			return known[i] < known[j]
+		}
+		return fi > fj
+	})
+
+	return known[0], true
+}
+
+func bestCandidateByDictionaryDistance(inputWord string, frequency map[string]int) (string, int, bool) {
+	if len(frequency) == 0 {
+		return "", 0, false
+	}
+
+	bestWord := ""
+	bestDistance := math.MaxInt
+	bestFrequency := -1
+
+	for candidate, freq := range frequency {
+		d := levenshteinDistanceDP(inputWord, candidate)
+		if d < bestDistance ||
+			(d == bestDistance && freq > bestFrequency) ||
+			(d == bestDistance && freq == bestFrequency && candidate < bestWord) {
+			bestWord = candidate
+			bestDistance = d
+			bestFrequency = freq
+		}
+	}
+
+	return bestWord, bestDistance, true
+}
+
+func correctSentenceByVariants(sentence string, frequency map[string]int) string {
+	alphabet := buildAlphabet(frequency)
+	return correctSentence(sentence, func(word string) string {
+		candidate, ok := bestCandidateFromVariants(word, frequency, alphabet)
+		if !ok {
+			return word
+		}
+		return candidate
+	})
+}
+
+func correctSentenceByDictionaryDistance(sentence string, frequency map[string]int) string {
+	return correctSentence(sentence, func(word string) string {
+		candidate, _, ok := bestCandidateByDictionaryDistance(word, frequency)
+		if !ok {
+			return word
+		}
+		return candidate
+	})
+}
+
+func correctSentence(sentence string, correctWord func(string) string) string {
+	runes := []rune(sentence)
+	var b strings.Builder
+
+	for i := 0; i < len(runes); {
+		if !unicode.IsLetter(runes[i]) {
+			b.WriteRune(runes[i])
+			i++
+			continue
+		}
+
+		start := i
+		for i < len(runes) && unicode.IsLetter(runes[i]) {
+			i++
+		}
+
+		original := string(runes[start:i])
+		lower := strings.ToLower(original)
+		corrected := correctWord(lower)
+
+		if len(corrected) > 0 && unicode.IsUpper(runes[start]) {
+			correctedRunes := []rune(corrected)
+			correctedRunes[0] = unicode.ToUpper(correctedRunes[0])
+			corrected = string(correctedRunes)
+		}
+
+		b.WriteString(corrected)
+	}
+
+	return b.String()
+}
+
+// Pro n >= 1 platí uzavřený tvar: 2*a*n + n + a - 1.
+func countGeneratedVariantsDistance1(wordLen, alphabetSize int) int {
+	if wordLen < 0 || alphabetSize < 0 {
+		return 0
+	}
+	if wordLen == 0 {
+		return alphabetSize
+	}
+
+	deletions := wordLen
+	transpositions := wordLen - 1
+	replacements := wordLen * (alphabetSize - 1)
+	insertions := (wordLen + 1) * alphabetSize
+
+	return deletions + transpositions + replacements + insertions
+}
+
+// Horní odhad pro počet kandidátů do vzdálenosti 2 bez zohlednění deduplikace.
+func countGeneratedVariantsDistance2UpperBound(wordLen, alphabetSize int) int {
+	if wordLen < 0 || alphabetSize < 0 {
+		return 0
+	}
+
+	c1 := countGeneratedVariantsDistance1(wordLen, alphabetSize)
+	maxSecondStep := countGeneratedVariantsDistance1(wordLen+1, alphabetSize)
+	return c1 + c1*maxSecondStep
+}
+
+// trainFrequencyModel načte korpus a vytvoří frekvenční slovník.
+func trainFrequencyModel(path string) (map[string]int, error) {
+	words, err := loadData(path)
+	if err != nil {
+		return nil, err
+	}
+
+	return createFrequencyMap(words), nil
+}
+
 func main() {
-	path := "C:\\Users\\ajrac\\Downloads\\cs (1).txt\\cs (1).txt"
-	if len(os.Args) > 1 {
+	path := defaultDatasetPath
+	if len(os.Args) >= 2 {
 		path = os.Args[1]
 	}
 	fmt.Println("Using path:", path)
 
-	words, err := loadData(path)
+	frequency, err := trainFrequencyModel(path)
 	if err != nil {
 		fmt.Println("Error loading data:", err)
 		return
 	}
 
-	frequency := createFrequencyMap(words)
-	probability := createProbabilityMap(frequency)
+	tokenCount := 0
+	for _, count := range frequency {
+		tokenCount += count
+	}
+	//probability := createProbabilityMap(frequency)
 
 	fmt.Printf("Dictionary size (unique words): %d\n", len(frequency))
-	fmt.Printf("Token count (all words): %d\n", len(words))
+	fmt.Printf("Token count (all words): %d\n", tokenCount)
 
-	if len(os.Args) <= 2 {
-		fmt.Println("Usage for variants: go run ./cv4 <dataset_path> <word>")
-		return
+	sentence := "Dneska si dám oběť v restauarci a pak půjdu zpěť domů, kde se podívám na televezí."
+	if len(os.Args) >= 3 {
+		sentence = strings.Join(os.Args[2:], " ")
 	}
 
-	inputWord := strings.ToLower(os.Args[2])
-	alphabet := buildAlphabet(frequency)
-	allVariants := editsUpToDistance2(inputWord, alphabet)
-	knownVariants := filterKnownVariants(allVariants, frequency)
+	byVariants := correctSentenceByVariants(sentence, frequency)
+	byDictionaryDistance := correctSentenceByDictionaryDistance(sentence, frequency)
 
-	fmt.Printf("Input word: %q\n", inputWord)
-	fmt.Printf("Generated variants (edit distance <= 2): %d\n", len(allVariants))
-	fmt.Printf("Variants found in dictionary: %d\n", len(knownVariants))
+	fmt.Println("Original:")
+	fmt.Println(sentence)
 
-	printTopKnownVariants(knownVariants, probability, 10)
+	// pět je v datasetu, proto se neopraví, možná by mohlo pomoct neopravování slov, co jsou v datasetu
+	fmt.Println("Varianty:")
+	fmt.Println(byVariants)
 
+	// ke slovo televezí se opraví na televizí, protože to je o 1 blíže než televizi, pomohli by n-gramy
+	fmt.Println("Vzdálenost:")
+	fmt.Println(byDictionaryDistance)
+
+	alphabetSize := len(buildAlphabet(frequency))
+	fmt.Printf("Estimated generated variants for one word (distance 1): %d\n", countGeneratedVariantsDistance1(6, alphabetSize))
+	fmt.Printf("Estimated generated variants for one word (distance <= 2, upper bound): %d\n", countGeneratedVariantsDistance2UpperBound(6, alphabetSize))
 }
 
 func loadData(filepath string) ([]string, error) {

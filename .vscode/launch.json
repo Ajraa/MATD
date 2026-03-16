@@ -26,14 +26,18 @@
             "program": "${workspaceFolder}/cv3",
             "cwd": "${workspaceFolder}/cv3"
         },
-                {
-            "name": "Debug cv4",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "program": "${workspaceFolder}/cv4",
-            "cwd": "${workspaceFolder}/cv4"
-        },
+      {
+    "name": "Debug cv4",
+    "type": "go",
+    "request": "launch",
+    "mode": "debug",
+    "program": "${workspaceFolder}/cv4",
+    "cwd": "${workspaceFolder}/cv4",
+    "args": [
+        "C:\\Users\\ajrac\\Downloads\\cs (1).txt\\cs (1).txt",
+        "Dneska si dám oběť v restauarci a pak půjdu zpěť domů, kde se podívám na televezí."
+    ]
+},
         {
             "name": "Debug current package",
             "type": "go",
