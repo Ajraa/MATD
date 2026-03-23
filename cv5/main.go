@@ -151,10 +151,6 @@ func compareApproaches(idx *InvertedIndex) {
 	ranked := evalQueryRanked(query, idx)
 	fmt.Printf("\nRankované TF-IDF (seřazeno, %d výsledků):\n", len(ranked))
 	printRankedResults(ranked, idx)
-
-	fmt.Println("\nZávěr: boolean vrací stejnou množinu dokumentů, ale TF-IDF")
-	fmt.Println("seřadí výsledky podle relevance – dokumenty, kde je slovo")
-	fmt.Println("vzácnější nebo četnější, dostávají vyšší skóre.")
 }
 
 func main() {
