@@ -6,15 +6,6 @@ import (
 )
 
 // UNÁRNÍ KÓDOVÁNÍ
-// Princip: číslo n se zakóduje jako (n-1) jedniček následovaných nulou.
-//   encode(1) = "0"
-//   encode(2) = "10"
-//   encode(3) = "110"
-//   encode(n) = "111...1" (n-1 jedniček) + "0"
-//
-// Výhoda: velmi krátká kódová slova pro malá čísla.
-// Nevýhoda: délka lineárně roste s n, pro velká čísla nevhodné.
-
 // UnaryEncode zakóduje kladné číslo n do unárního kódu.
 func UnaryEncode(n int) string {
 	if n <= 0 {
@@ -58,21 +49,6 @@ func UnaryDecodeList(code string) []int {
 }
 
 // ELIASOVO GAMMA KÓDOVÁNÍ
-// Princip: číslo n se zakóduje ve dvou částech.
-//   1. k = floor(log2(n))   (počet bitů minus 1)
-//   2. prefix: k nul + "1"
-//   3. suffix: binární zápis n bez vedoucího bitu (přesně k číslic)
-//
-// Příklady:
-//   encode(1) = k=0 → prefix="1",   suffix=""   → "1"
-//   encode(2) = k=1 → prefix="01",  suffix="0"  → "010"
-//   encode(3) = k=1 → prefix="01",  suffix="1"  → "011"
-//   encode(4) = k=2 → prefix="001", suffix="00" → "00100"
-//   encode(7) = k=2 → prefix="001", suffix="11" → "00111"
-//
-// Délka kódu: 2*k + 1 = 2*floor(log2(n)) + 1 bitů.
-// Optimální pro čísla z geometrického rozdělení.
-
 // binFixed vrátí binární reprezentaci val na přesně width číslic.
 func binFixed(width, val int) string {
 	b := make([]byte, width)
@@ -146,25 +122,6 @@ func EliasGammaDecodeList(code string) []int {
 }
 
 // FIBONACCIHO KÓDOVÁNÍ
-// Princip: vychází ze Zeckendorfovy věty — každé přirozené číslo lze jednoznačně
-// vyjádřit jako součet navzájem nekonsekutivních Fibonacciho čísel.
-//
-// Fibonacciho čísla použitá pro kódování: F1=1, F2=2, F3=3, F4=5, F5=8, ...
-//
-// Postup:
-//   1. Greedy: od největšího Fi <= n odečítej, nastav bit[i]=1.
-//   2. Přidej terminační bit '1' (výsledek vždy končí "11").
-//
-// Příklady:
-//   encode(1) = 1=F1           → bits="1"    → kód="11"
-//   encode(2) = 2=F2           → bits="01"   → kód="011"
-//   encode(3) = 3=F3           → bits="001"  → kód="0011"
-//   encode(4) = 1+3=F1+F3      → bits="101"  → kód="1011"
-//   encode(6) = 1+5=F1+F4      → bits="1001" → kód="10011"
-//
-// Výhoda: délka roste jako 1.44*log2(n), tedy pomaleji než unár.
-// Dekódování: hledá terminační "11".
-
 // fibNums vrátí Fibonacciho čísla (F1=1, F2=2, ...) nepřesahující maxVal.
 func fibNums(maxVal int) []int {
 	a, b := 1, 2

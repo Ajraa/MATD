@@ -76,10 +76,6 @@ func main() {
 	fmt.Printf("  %-22s  %10d  %10d  %7.1f%%\n", "Eliasův gamma (B)", gammaBits, gammaBytes, 100.0*float64(gammaBytes)/float64(rawBytes))
 	fmt.Printf("  %-22s  %10d  %10d  %7.1f%%\n", "Fibonacci (B)", fibBits, fibBytes, 100.0*float64(fibBytes)/float64(rawBytes))
 
-	fmt.Println()
-	fmt.Println("  Poznámka: 'Bajty (text)' = délka bitového řetězce v bajtech (1 bit = 1 znak)")
-	fmt.Println("            'Bajty (bin)'  = ekvivalentní binární uložení (ceil(bits/8))")
-
 	// ČÁST 3b: Srovnání rychlosti vyhledávání
 
 	fmt.Println("=== Srovnání rychlosti vyhledávání ===")
@@ -96,28 +92,26 @@ func main() {
 	fmt.Println("  ────────────────────────────────────────────────────────────────────────────────")
 
 	// Vyhledávání v nezakódovaném indexu
-	{
-		found, notFound := 0, 0
-		t0 := time.Now()
-		for rep := 0; rep < searches; rep++ {
-			for _, w := range searchWords {
-				for _, d := range testDocIDs {
-					if SearchRaw(inv, w, d) {
-						found++
-					} else {
-						notFound++
-					}
+	found, notFound := 0, 0
+	t0 := time.Now()
+	for rep := 0; rep < searches; rep++ {
+		for _, w := range searchWords {
+			for _, d := range testDocIDs {
+				if SearchRaw(inv, w, d) {
+					found++
+				} else {
+					notFound++
 				}
 			}
 		}
-		elapsed := time.Since(t0)
-		total := searches * len(searchWords) * len(testDocIDs)
-		fmt.Printf("  %-22s  %12d  %12d  %12d  %12d\n",
-			"Nezakódováno",
-			elapsed.Microseconds(),
-			elapsed.Nanoseconds()/int64(total),
-			found, notFound)
 	}
+	elapsed := time.Since(t0)
+	total := searches * len(searchWords) * len(testDocIDs)
+	fmt.Printf("  %-22s  %12d  %12d  %12d  %12d\n",
+		"Nezakódováno",
+		elapsed.Microseconds(),
+		elapsed.Nanoseconds()/int64(total),
+		found, notFound)
 
 	// Generická funkce pro měření zakódovaného vyhledávání
 	measureEncoded := func(name string, enc EncodedIndex, decodeFn func(string) []int) {
@@ -146,9 +140,4 @@ func main() {
 	measureEncoded("Unární", encUnary, UnaryDecodeList)
 	measureEncoded("Eliasův gamma", encGamma, EliasGammaDecodeList)
 	measureEncoded("Fibonacci", encFib, FibonacciDecodeList)
-
-	fmt.Println()
-	fmt.Println("  Závěr: zakódovaný index vyžaduje dekódování → pomalejší vyhledávání.")
-	fmt.Println("  Komprese snižuje velikost, ale zvyšuje čas dotazu (trade-off).")
-	fmt.Println("  Eliasův gamma a Fibonacci jsou výrazně úspornější než unár pro velká čísla.")
 }

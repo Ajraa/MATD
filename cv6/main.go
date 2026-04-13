@@ -21,7 +21,7 @@ func main() {
 			preview = preview[:12]
 		}
 		fmt.Printf("Dokument %d – %s:\n", doc.ID, doc.Title)
-		fmt.Printf("  Termů celkem: %d  |  Ukázka: %v ...\n\n", len(docTerms), preview)
+		fmt.Printf("Termů celkem: %d  |  Ukázka: %v ...\n\n", len(docTerms), preview)
 	}
 
 	//tfidf index
@@ -81,7 +81,7 @@ func main() {
 		fmt.Printf("Dotaz: %q\n", q)
 		results := scoreQuery(q, idx)
 		if len(results) == 0 {
-			fmt.Println("  Žádné výsledky.\n")
+			fmt.Println("Žádné výsledky.\n")
 			continue
 		}
 		top := results
@@ -89,7 +89,7 @@ func main() {
 			top = top[:5]
 		}
 		for rank, r := range top {
-			fmt.Printf("  %d. [score=%.4f] [ID=%2d] %s\n",
+			fmt.Printf("%d. [score=%.4f] [ID=%2d] %s\n",
 				rank+1, r.Score, r.DocID, titleOf[r.DocID])
 		}
 		fmt.Println()
@@ -160,7 +160,7 @@ func main() {
 
 	fmt.Println("\nTop 5 párů dle TF-IDF:")
 	for rank, p := range pairs[:limitN(len(pairs), 5)] {
-		fmt.Printf("  %d. [sim=%.4f] Doc %2d (%s)  ↔  Doc %2d (%s)\n",
+		fmt.Printf("%d. [sim=%.4f] Doc %2d (%s)  ↔  Doc %2d (%s)\n",
 			rank+1, p.Similarity, p.DocA, titleOf[p.DocA], p.DocB, titleOf[p.DocB])
 	}
 }
