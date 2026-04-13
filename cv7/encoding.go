@@ -122,30 +122,33 @@ func EliasGammaDecodeList(code string) []int {
 }
 
 // FIBONACCIHO KÓDOVÁNÍ
-// fibNums vrátí Fibonacciho čísla (F1=1, F2=2, ...) nepřesahující maxVal.
-func fibNums(maxVal int) []int {
+// fibTable obsahuje předpočítaná Fibonacciho čísla (F1=1, F2=2, F3=3, F4=5, ...).
+// Generuje všechna čísla, která se vejdou do int — stačí pro libovolnou praktickou hodnotu.
+var fibTable = func() []int {
+	t := make([]int, 0, 50)
 	a, b := 1, 2
-	var fibs []int
-	for a <= maxVal {
-		fibs = append(fibs, a)
+	for a > 0 { // zastaví se při přetečení int
+		t = append(t, a)
 		a, b = b, a+b
 	}
-	return fibs
-}
+	return t
+}()
 
 // FibonacciEncode zakóduje kladné číslo n Fibonacciho kódem.
 func FibonacciEncode(n int) string {
 	if n <= 0 {
 		panic("Fibonacciho kódování je definováno pouze pro n >= 1")
 	}
-	fibs := fibNums(n)
-	k := len(fibs)
+	k := 0
+	for k < len(fibTable) && fibTable[k] <= n {
+		k++
+	}
 	bitsArr := make([]byte, k)
 	rem := n
 	for i := k - 1; i >= 0; i-- {
-		if fibs[i] <= rem {
+		if fibTable[i] <= rem {
 			bitsArr[i] = '1'
-			rem -= fibs[i]
+			rem -= fibTable[i]
 		} else {
 			bitsArr[i] = '0'
 		}
@@ -166,15 +169,10 @@ func FibonacciDecode(code string) (int, string) {
 	if end == -1 {
 		panic("neplatný Fibonacciho kód: chybí terminační '11'")
 	}
-	word := code[:end] // bity bez terminačního '1'
-	fibs := []int{1, 2}
-	for len(fibs) < len(word) {
-		fibs = append(fibs, fibs[len(fibs)-1]+fibs[len(fibs)-2])
-	}
 	val := 0
-	for i := 0; i < len(word); i++ {
-		if word[i] == '1' {
-			val += fibs[i]
+	for i := 0; i < end; i++ {
+		if code[i] == '1' {
+			val += fibTable[i]
 		}
 	}
 	return val, code[end+1:]
