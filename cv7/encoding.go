@@ -68,7 +68,7 @@ func EliasGammaEncode(n int) string {
 	if n <= 0 {
 		panic("Eliasovo kódování je definováno pouze pro n >= 1")
 	}
-	k := bits.Len(uint(n)) - 1 // floor(log2(n))
+	k := bits.Len(uint(n)) - 1 // počet bitů v binární reprezentaci n bez vedoucího 1
 	prefix := strings.Repeat("0", k) + "1"
 	suffix := ""
 	if k > 0 {
