@@ -4,8 +4,10 @@
 .claude/
 cv8/*.txt
 cv8/*.vec
+data/*.vec
 venv/
 todos/
 *.keras
 cv9/*.txt
 *.pkl
+data/*
